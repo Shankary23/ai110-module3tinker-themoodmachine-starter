@@ -11,16 +11,28 @@ You may complete this model card for whichever version you used, or compare both
 
 **Model type:**  
 Describe whether you used the rule based model, the ML model, or both.  
-Example: “I used the rule based model only” or “I compared both models.”
+
+ - Only used the rule based model, since training a model   would take longer but would be more effective at handling the edge cases like sarcasm.
 
 **Intended purpose:**  
 What is this model trying to do?  
 Example: classify short text messages as moods like positive, negative, neutral, or mixed.
 
+- This model is trying to classify captions with positive or negative feelings, based on the words and phrasing.
+
 **How it works (brief):**  
 For the rule based version, describe the scoring rules you created.  
 For the ML version, describe how training works at a high level (no math needed).
 
+- The rule-based model tokenizes input text (lowercase, split on spaces, punctuation stripped) and scans each token against two word lists: POSITIVE_WORDS and NEGATIVE_WORDS. Each positive word match adds +1 to the score; each negative word match subtracts 1.
+
+    - Two additional rules improve accuracy:
+
+        - Negation handling — if a negation word (e.g. "not", "never", "don't") immediately precedes a sentiment word, the contribution is flipped (e.g. "not happy" scores -1 instead of +1).
+
+        - Sarcasm detection — if the text contains at least one positive word alongside a known sarcasm trigger word (e.g. "stuck", "traffic", "terrible"), the score is forced negative, catching phrases like "I love getting stuck in traffic."
+
+        - The final score is mapped to a label: positive (> 0), negative (< 0), or neutral (== 0).
 
 
 ## 2. Data

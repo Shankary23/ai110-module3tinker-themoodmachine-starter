@@ -75,15 +75,38 @@ class MoodAnalyzer:
           - Give some words higher weights than others (for example "hate" < "annoyed")
           - Treat emojis or slang (":)", "lol", "💀") as strong signals
         """
-        # TODO: Implement this method.
-        #   1. Call self.preprocess(text) to get tokens.
-        #   2. Loop over the tokens.
-        #   3. Increase the score for positive words, decrease for negative words.
-        #   4. Return the total score.
-        #
-        # Hint: if you implement negation, you may want to look at pairs of tokens,
-        # like ("not", "happy") or ("never", "fun").
-        pass
+        # Phrases that strongly signal sarcasm when a positive word is also present.
+        sarcasm_triggers = {"stuck", "traffic", "mondays", "monday", "broke", "delayed", "cancelled", "canceled", "terrible", "awful", "horrible", "worst"}
+
+        tokens = self.preprocess(text)
+        score = 0
+        negation_words = {"not", "never", "no", "cant", "cannot", "won't", "don't", "doesn't", "didn't"}
+        negate_next = False
+
+        positive_hits = []
+        negative_hits = []
+
+        for token in tokens:
+            clean = token.strip(".,!?;:'\"")
+            if clean in negation_words:
+                negate_next = True
+                continue
+            if clean in self.positive_words:
+                score += -1 if negate_next else 1
+                if not negate_next:
+                    positive_hits.append(clean)
+            elif clean in self.negative_words:
+                score += 1 if negate_next else -1
+                if not negate_next:
+                    negative_hits.append(clean)
+            negate_next = False
+
+        # Sarcasm heuristic: positive word + sarcasm trigger in same text → flip to negative.
+        cleaned_tokens = {t.strip(".,!?;:'\"") for t in tokens}
+        if positive_hits and cleaned_tokens & sarcasm_triggers:
+            score = -abs(score) - 1
+
+        return score
 
     # ---------------------------------------------------------------------
     # Label prediction
@@ -105,12 +128,13 @@ class MoodAnalyzer:
         Just remember that whatever labels you return should match the labels
         you use in TRUE_LABELS in dataset.py if you care about accuracy.
         """
-        # TODO: Implement this method.
-        #   1. Call self.score_text(text) to get the numeric score.
-        #   2. Return "positive" if the score is above 0.
-        #   3. Return "negative" if the score is below 0.
-        #   4. Return "neutral" otherwise.
-        pass
+        score = self.score_text(text)
+        if score > 0:
+            return "positive"
+        elif score < 0:
+            return "negative"
+        else:
+            return "neutral"
 
     # ---------------------------------------------------------------------
     # Explanations (optional but recommended)
