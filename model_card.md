@@ -10,20 +10,12 @@ You may complete this model card for whichever version you used, or compare both
 ## 1. Model Overview
 
 **Model type:**  
-Describe whether you used the rule based model, the ML model, or both.  
-
  - Only used the rule based model, since training a model   would take longer but would be more effective at handling the edge cases like sarcasm.
 
 **Intended purpose:**  
-What is this model trying to do?  
-Example: classify short text messages as moods like positive, negative, neutral, or mixed.
-
 - This model is trying to classify captions with positive or negative feelings, based on the words and phrasing.
 
 **How it works (brief):**  
-For the rule based version, describe the scoring rules you created.  
-For the ML version, describe how training works at a high level (no math needed).
-
 - The rule-based model tokenizes input text (lowercase, split on spaces, punctuation stripped) and scans each token against two word lists: POSITIVE_WORDS and NEGATIVE_WORDS. Each positive word match adds +1 to the score; each negative word match subtracts 1.
 
     - Two additional rules improve accuracy:
@@ -38,98 +30,76 @@ For the ML version, describe how training works at a high level (no math needed)
 ## 2. Data
 
 **Dataset description:**  
-Summarize how many posts are in `SAMPLE_POSTS` and how you added new ones.
+- There are 11 posts in Sample_Posts and I added new ones based on the previous posts but tried to make them more unqiue and more accurate to what someone might say currently.
 
 **Labeling process:**  
-Explain how you chose labels for your new examples.  
-Mention any posts that were hard to label or could have multiple valid labels.
+- I used the words to label, if the words or sentence was positive as a whole, I labeled it accordingly. For hard to label posts I just put mixed but that is cause I am a human able to interpret it would be hard for a rule based system to come to that same conclusion. 
 
 **Important characteristics of your dataset:**  
-Examples you might include:  
 
-- Contains slang or emojis  
-- Includes sarcasm  
-- Some posts express mixed feelings  
-- Contains short or ambiguous messages
+- Contains informal/conversational language and sports references (e.g. "I am cooked", "Met Mbappe")
+Includes mixed-feeling posts where both positive and negative words appear (ex. "Feeling tired but kind of hopeful")
+- Contains short, ambiguous posts where tone depends on context (ex. "On to the next one", "This is fine")
+- Leaning towards positive: 7 of 12 posts are labeled positive, only 3 negative
 
 **Possible issues with the dataset:**  
-Think about imbalance, ambiguity, or missing kinds of language.
+
+- The dataset is very small (12 posts), making accuracy scores unreliable, one wrong prediction swings accuracy.
+- Most posts use mainstream English, slang, emojis, and non-English expressions are underrepresented.
+- Some labels are debatable, "On to the next one" could reasonably be neutral or mixed depending on context.
 
 ## 3. How the Rule Based Model Works (if used)
 
 **Your scoring rules:**  
-Describe the modeling choices you made.  
-Examples:  
 
-- How positive and negative words affect score  
-- Negation rules you added  
-- Weighted words  
-- Emoji handling  
-- Threshold decisions for labels
+- Each positive word match adds +1 to the score; each negative word match subtracts 1.
+Negation handling: if a negation word ("not", "never", "don't", etc.) immediately precedes a sentiment word, the contribution is flipped, "not happy" scores -1 instead of +1.
+- Sarcasm detection: if the text contains both a positive word and a known sarcasm trigger word ("stuck", "traffic", "terrible", etc.), the score is forced negative regardless of the raw total.
+- Label thresholds: score > 0 → positive, score < 0 → negative, score == 0 → neutral. No "mixed" label is produced by the rule-based model.
 
 **Strengths of this approach:**  
-Where does it behave predictably or reasonably well?
+- Transparent and easy to debug — you can see exactly which words drove the prediction.
+
+- Handles straightforward positive/negative sentences reliably when the key word is in the list.
+
+- Negation handling correctly flips sentiment for common patterns like "not happy" or "don't love."
 
 **Weaknesses of this approach:**  
-Where does it fail?  
-Examples: sarcasm, subtlety, mixed moods, unfamiliar slang.
+- Cannot produce a "mixed" label, so posts with both positive and negative words often land on whichever side has more matches rather than reflecting true ambiguity.
+- Entirely dependent on the word lists — any unfamiliar slang, emojis, or context-specific language ("I am cooked") scores neutral unless manually added.
+- Sarcasm detection only works for pre-defined trigger words; novel sarcastic phrasing will be missed.
 
 ## 4. How the ML Model Works (if used)
-
-**Features used:**  
-Describe the representation.  
-Example: “Bag of words using CountVectorizer.”
-
-**Training data:**  
-State that the model trained on `SAMPLE_POSTS` and `TRUE_LABELS`.
-
-**Training behavior:**  
-Did you observe changes in accuracy when you added more examples or changed labels?
-
-**Strengths and weaknesses:**  
-Strengths might include learning patterns automatically.  
-Weaknesses might include overfitting to the training data or picking up spurious cues.
 
 ## 5. Evaluation
 
 **How you evaluated the model:**  
-Both versions can be evaluated on the labeled posts in `dataset.py`.  
-Describe what accuracy you observed.
+The model was evaluated on all 12 posts in `SAMPLE_POSTS` by comparing `predict_label` output against `TRUE_LABELS`. The rule-based model achieved ~75% accuracy on the sample set.
 
-**Examples of correct predictions:**  
-Provide 2 or 3 examples and explain why they were correct.
+**Examples of correct predictions:**
 
-**Examples of incorrect predictions:**  
-Provide 2 or 3 examples and explain why the model made a mistake.  
-If you used both models, show how their failures differed.
+- “I love this class so much” → positive. “love” is in POSITIVE_WORDS and no negation or sarcasm trigger is present.
+- “Today was a terrible day” → negative. “terrible” is in NEGATIVE_WORDS and scores -1.
+- “I am not happy about this” → negative. Negation handling flips “happy” from +1 to -1.
+
+**Examples of incorrect predictions:**
+
+- “Feeling tired but kind of hopeful” → predicted neutral, true mixed. “tired” (-1) and “hopeful” (+1) cancel out to 0, and the model has no “mixed” label.
+- “On to the next one” → predicted neutral, true positive. None of the words appear in either word list, so the score is 0.
 
 ## 6. Limitations
 
-Describe the most important limitations.  
-Examples:  
-
-- The dataset is small  
-- The model does not generalize to longer posts  
-- It cannot detect sarcasm reliably  
-- It depends heavily on the words you chose or labeled
+- The dataset is very small (12 posts), so accuracy numbers are not statistically meaningful.
+- The model cannot produce a “mixed” label, missing posts that express both positive and negative feelings.
+- Coverage depends entirely on the manually curated word lists — any word not in the list contributes nothing to the score.
+- Sarcasm detection only works for a fixed set of trigger words and will miss novel sarcastic phrasing.
 
 ## 7. Ethical Considerations
 
-Discuss any potential impacts of using mood detection in real applications.  
-Examples: 
-
-- Misclassifying a message expressing distress  
-- Misinterpreting mood for certain language communities  
-- Privacy considerations if analyzing personal messages
-
+Misclassifying a message expressing distress as neutral or positive could be harmful in any application that routes users to support resources. The word lists reflect a particular style of English, so posts using slang from other language communities or non-English expressions may be systematically misread. 
 ## 8. Ideas for Improvement
 
-List ways to improve either model.  
-Possible directions:  
-
-- Add more labeled data  
-- Use TF IDF instead of CountVectorizer  
-- Add better preprocessing for emojis or slang  
-- Use a small neural network or transformer model  
-- Improve the rule based scoring method  
-- Add a real test set instead of training accuracy only
+- Expand the dataset with more diverse examples including slang, emojis, and sarcasm to improve coverage.
+- Weight high-intensity words more heavily ex. “hate” = -2, “annoyed” = -1
+- Add emoji and common slang mappings: “lol” and “💀” as explicit sentiment signals.
+- Replace the rule-based approach with a small ML classifier trained on a larger labeled dataset for better generalization.
